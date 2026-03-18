@@ -1,0 +1,5 @@
+apiVersion: v2
+name: nats
+description: NATS messaging system with JetStream persistence
+type: application
+version: 0.1.0

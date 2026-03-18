@@ -1,0 +1,11 @@
+# Per-cluster Loki values override for ovh-starter.
+#
+# NOTE: This file is intentionally **not used** for OVH clusters.
+# The starter kit injects the correct OVH Object Storage bucket names into Loki
+# automatically from Terraform outputs (see `lokiBucketNames.*` in `argocd/values.yaml`).
+#
+# We keep this file so:
+# - the repo stays consistent with the other cloud overlays, and
+# - verification scripts that statically check `$values/...` references pass.
+#
+# (Intentionally empty.)

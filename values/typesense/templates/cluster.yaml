@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.typesense.name }}
+spec:
+  serviceName: {{ .Values.typesense.name }}
+  replicas: {{ .Values.typesense.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.typesense.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.typesense.name }}
+    spec:
+      {{- if .Values.typesense.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.typesense.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.typesense.tolerations }}
+      tolerations:
+        {{- toYaml .Values.typesense.tolerations | nindent 8 }}
+      {{- end }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - {{ .Values.typesense.name }}
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: typesense
+          image: {{ .Values.typesense.image }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.typesense.port }}
+            - name: peering
+              containerPort: {{ .Values.typesense.peering_port }}
+          env:
+            - name: TYPESENSE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.typesense.auth.apiKeySecretRef.name }}
+                  key: {{ .Values.typesense.auth.apiKeySecretRef.key }}
+          args:
+            - "--data-dir=/data"
+            - "--api-port={{ .Values.typesense.port }}"
+            - "--peering-port={{ .Values.typesense.peering_port }}"
+            {{- if .Values.typesense.analytics.enabled }}
+            - "--enable-search-analytics=true"
+            {{- end }}
+            {{- $replicas := int .Values.typesense.replicas }}
+            {{- $name := .Values.typesense.name }}
+            {{- $peeringPort := int .Values.typesense.peering_port }}
+            {{- $nodes := list }}
+            {{- range $i := until $replicas }}
+            {{- $nodes = append $nodes (printf "%s-%d.%s:%d" $name $i $name $peeringPort) }}
+            {{- end }}
+            - "--nodes={{ join "," $nodes }}"
+          resources:
+            requests:
+              cpu: {{ .Values.typesense.resources.requests.cpu }}
+              memory: {{ .Values.typesense.resources.requests.memory }}
+            limits:
+              memory: {{ .Values.typesense.resources.limits.memory }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.typesense.storage.storageClass }}
+        storageClassName: {{ .Values.typesense.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.typesense.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.typesense.name }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: {{ .Values.typesense.name }}
+  ports:
+    - name: http
+      port: {{ .Values.typesense.port }}
+      targetPort: http
+    - name: peering
+      port: {{ .Values.typesense.peering_port }}
+      targetPort: peering

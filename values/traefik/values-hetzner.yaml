@@ -1,0 +1,23 @@
+# Hetzner cloud overlay for Traefik
+# Hetzner Cloud Load Balancer annotations and proxy protocol configuration
+
+service:
+  annotations:
+    load-balancer.hetzner.cloud/type: "lb11"
+    load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
+    # Use the shared EU network zone so the starter works across nbg1/fsn1/hel1.
+    load-balancer.hetzner.cloud/network-zone: "eu-central"
+
+# Proxy protocol: Traefik must trust the LB's source IPs to extract real client IPs
+# 127.0.0.1 = loopback, 10.0.0.0/8 = Hetzner private network range
+ports:
+  web:
+    proxyProtocol:
+      trustedIPs:
+        - 127.0.0.1/32
+        - 10.0.0.0/8
+  websecure:
+    proxyProtocol:
+      trustedIPs:
+        - 127.0.0.1/32
+        - 10.0.0.0/8

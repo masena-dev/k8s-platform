@@ -1,0 +1,174 @@
+{{- if .Values.components.cnpg }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/cnpg/cluster
+      helm:
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - values.yaml
+          - values-{{ .Values.cloudProvider }}.yaml
+          - $values/clusters/{{ .Values.clusterName }}/cnpg-values.yaml
+        {{- if .Values.cnpgBackupBucketName }}
+        parameters:
+          - name: backup.destinationPath
+            value: {{ printf "s3://%s/" .Values.cnpgBackupBucketName | quote }}
+          {{- if .Values.objectStorage.endpoint }}
+          - name: backup.endpointURL
+            value: {{ .Values.objectStorage.endpoint | quote }}
+          {{- end }}
+          {{- if .Values.objectStorage.region }}
+          - name: backup.s3.region
+            value: {{ .Values.objectStorage.region | quote }}
+          {{- end }}
+        {{- end }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: database
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+{{- end }}
+---
+{{- if .Values.components.dragonfly }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dragonfly
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/dragonfly
+      helm:
+        valueFiles:
+          - values.yaml
+          - values-{{ .Values.cloudProvider }}.yaml
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cache
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+{{- end }}
+---
+{{- if .Values.components.typesense }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: typesense-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/typesense
+      helm:
+        valueFiles:
+          - values.yaml
+          - values-{{ .Values.cloudProvider }}.yaml
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: search
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+{{- end }}
+---
+{{- if .Values.components.nats }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nats
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/nats
+      helm:
+        valueFiles:
+          - values.yaml
+          - values-{{ .Values.cloudProvider }}.yaml
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+{{- end }}

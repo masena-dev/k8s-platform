@@ -1,0 +1,5 @@
+apiVersion: v2
+name: bootstrap-secrets
+description: ExternalSecret resources that sync infrastructure credentials from 1Password
+type: application
+version: 0.1.0

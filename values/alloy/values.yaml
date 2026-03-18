@@ -1,0 +1,116 @@
+# Grafana Alloy - Log collection DaemonSet
+#
+# Collects logs from all pods and ships to Loki via the gateway.
+# Extracts standard Kubernetes labels for filtering in Grafana.
+#
+# external_labels.cluster and external_labels.environment are injected
+# dynamically by the ArgoCD app via CLUSTER_NAME and ENVIRONMENT env vars.
+
+alloy:
+  configMap:
+    create: true
+    content: |
+      // Discover all pods in the cluster
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Extract labels for log filtering and organization
+      discovery.relabel "pod_labels" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Standard Kubernetes app labels (app.kubernetes.io/*)
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          target_label  = "app_kubernetes_io_name"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          target_label  = "app_kubernetes_io_component"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_instance"]
+          target_label  = "app_kubernetes_io_instance"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_version"]
+          target_label  = "app_kubernetes_io_version"
+        }
+
+        // Common app label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+
+        // Kubernetes metadata
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      // Collect logs from all discovered pods
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pod_labels.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // Ship to Loki via gateway with batching and retry
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+
+          batch_size     = "1MiB"
+          batch_wait     = "1s"
+          remote_timeout = "30s"
+
+          // Retry on rate limiting with exponential backoff
+          retry_on_http_429   = true
+          min_backoff_period  = "500ms"
+          max_backoff_period  = "5m"
+          max_backoff_retries = 10
+        }
+
+        external_labels = {
+          cluster     = env("CLUSTER_NAME"),
+          environment = env("ENVIRONMENT"),
+        }
+      }
+
+controller:
+  type: daemonset
+
+serviceAccount:
+  create: true
+
+rbac:
+  create: true
+
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

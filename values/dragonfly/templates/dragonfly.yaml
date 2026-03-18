@@ -1,0 +1,39 @@
+apiVersion: dragonflydb.io/v1alpha1
+kind: Dragonfly
+metadata:
+  name: {{ .Values.dragonfly.name }}
+spec:
+  replicas: {{ .Values.dragonfly.replicas }}
+  image: {{ .Values.dragonfly.image }}
+
+  args:
+    {{- toYaml .Values.dragonfly.args | nindent 4 }}
+
+  resources:
+    requests:
+      cpu: {{ .Values.dragonfly.resources.requests.cpu }}
+      memory: {{ .Values.dragonfly.resources.requests.memory }}
+    limits:
+      memory: {{ .Values.dragonfly.resources.limits.memory }}
+
+  {{- if .Values.dragonfly.auth.enabled }}
+  authentication:
+    passwordFromSecret:
+      name: {{ .Values.dragonfly.auth.passwordSecretRef.name }}
+      key: {{ .Values.dragonfly.auth.passwordSecretRef.key }}
+  {{- end }}
+
+  {{- if .Values.dragonfly.nodeSelector }}
+  nodeSelector:
+    {{- toYaml .Values.dragonfly.nodeSelector | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.dragonfly.tolerations }}
+  tolerations:
+    {{- toYaml .Values.dragonfly.tolerations | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.dragonfly.affinity }}
+  affinity:
+    {{- toYaml .Values.dragonfly.affinity | nindent 4 }}
+  {{- end }}

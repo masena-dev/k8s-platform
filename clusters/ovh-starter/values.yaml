@@ -1,0 +1,23 @@
+# Per-cluster ArgoCD values overlay for ovh-starter
+#
+# This file is loaded by the ArgoCD root Application as a secondary values source,
+# overriding defaults from argocd/values.yaml.
+#
+# Cluster-specific settings like cloud provider, component toggles, and
+# environment-specific overrides go here.
+
+cloudProvider: "ovh"
+
+# OVH cluster is validated — use production certs.
+# New clouds should omit this (defaults to letsencrypt-staging) until verified.
+clusterIssuer: "letsencrypt-production"
+
+components:
+  demoApp: true
+  # Data layer — uncomment to enable (requires object storage):
+  # cnpg: true
+
+#
+# `demoApp` is on here so a fresh bootstrap exercises ingress, TLS, and app
+# rollout. If you fork and make the image private, add `imagePullSecrets` in
+# `clusters/ovh-starter/demo-app-values.yaml`.

@@ -1,0 +1,55 @@
+# Remote state — state_bucket and state_region are set via TF_VAR_ env vars (see .env.shared.example)
+
+# ArgoCD
+argocd_repo_url        = "https://github.com/your-org/k8s-platform"
+argocd_target_revision = "main"
+# github_token         = ""  # Only needed for private repos
+
+# Secret Zero (1Password SDK provider)
+# Recommended: set sensitive values via environment variables (see .env.shared.example)
+# onepassword_service_account_token = ""   # 1Password service account token
+# onepassword_infra_vault           = ""   # Vault name for ESO (e.g. "-infra")
+# onepassword_infra_vault_id        = ""   # Vault UUID used by Terraform to write items (optional)
+
+# Cloud Provider
+cloud_provider = "ovh"
+
+# Cluster identity (must match Stage 1 cluster_name)
+cluster_name = "ovh-starter"
+
+# Let's Encrypt
+letsencrypt_email = "ops@your-company.com"
+
+# DNS + bootstrap secrets (required for a production-grade setup)
+# Recommended: set via env vars (TF_VAR_domain, TF_VAR_cloudflare_api_token)
+# domain             = ""  # Base domain used for demo ingress hostnames and 1Password login item URLs
+# grafana_admin_password = ""  # Leave empty to auto-generate
+# cloudflare_api_token   = ""  # Cloudflare API token for external-dns (Zone:DNS:Edit)
+
+# 1Password Dual-Vault (optional)
+# onepassword_team_logins_vault_id = ""  # Vault ID for browser logins
+
+# OIDC RBAC (optional)
+# oidc_viewers = ["dev@example.com"]
+# oidc_admins  = ["ops@example.com"]
+
+# OIDC / OAuth (optional — leave empty to skip SSO)
+# oidc_issuer_url               = "https://accounts.google.com"
+# grafana_oauth_client_id       = ""
+# grafana_oauth_client_secret   = ""
+# oidc_allowed_domains          = "your-company.com"  # shared by ArgoCD + Grafana
+# argocd_oidc_client_id         = ""
+# argocd_oidc_client_secret     = ""
+# kubectl_oidc_client_id        = ""
+# kubectl_oidc_client_secret    = ""
+
+# Monitoring basicAuth (optional — auto-generated if empty)
+# monitoring_basic_auth_username = "admin"
+# monitoring_basic_auth_password = ""
+
+# CNPG (CloudNativePG — in-cluster PostgreSQL)
+# cnpg_enabled = true
+
+# GHCR (GitHub Container Registry — private image pull)
+# ghcr_username = ""
+# ghcr_token    = ""

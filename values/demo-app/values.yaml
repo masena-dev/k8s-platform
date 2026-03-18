@@ -1,0 +1,43 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/masena-dev/k8s-platform-demo-app
+  tag: "main-81e3cd1"
+  pullPolicy: IfNotPresent
+
+containerPort: 8080
+
+imagePullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+  hosts:
+    - host: demo.your-domain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: demo-app-tls
+      hosts:
+        - demo.your-domain.com
+
+# Database configuration
+# When enabled, injects DATABASE_WRITE_URL and DATABASE_READ_URL from the named secret.
+# Supports both managed PostgreSQL (via 1Password/ESO) and CNPG.
+databaseSecret:
+  enabled: false
+  name: database-credentials
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi

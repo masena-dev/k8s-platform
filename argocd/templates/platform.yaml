@@ -1,0 +1,357 @@
+{{- if .Values.components.traefik }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: {{ .Values.versions.traefik }}
+      helm:
+        valueFiles:
+          - $values/values/traefik/values.yaml
+          - $values/values/traefik/values-{{ .Values.cloudProvider }}.yaml
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+---
+{{- if .Values.components.argocdIngress }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/argocd-ingress
+      helm:
+        valuesObject:
+          host: {{ printf "argocd-%s.%s" .Values.clusterName .Values.domain | quote }}
+          clusterIssuer: {{ .Values.clusterIssuer | quote }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{{- end }}
+---
+{{- if .Values.components.monitoringMiddleware }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-middleware
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/monitoring-middleware
+      helm:
+        valuesObject:
+          onepasswordItemName: {{ printf "monitoring-basic-auth-%s" .Values.clusterName | quote }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+{{- end }}
+---
+{{- if .Values.components.externalDns }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/external-dns
+      chart: external-dns
+      targetRevision: {{ .Values.versions.externalDns }}
+      helm:
+        valueFiles:
+          - $values/values/external-dns/values.yaml
+          - $values/values/external-dns/values-{{ .Values.cloudProvider }}.yaml
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+---
+{{- if .Values.components.monitoring }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: {{ .Values.versions.kubePrometheusStack }}
+      helm:
+        skipCrds: true
+        valueFiles:
+          - $values/values/kube-prometheus-stack/values.yaml
+        valuesObject:
+          grafana:
+            ingress:
+              annotations:
+                cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer | quote }}
+              hosts:
+                - {{ printf "grafana-%s.%s" .Values.clusterName .Values.domain | quote }}
+              tls:
+                - secretName: grafana-tls
+                  hosts:
+                    - {{ printf "grafana-%s.%s" .Values.clusterName .Values.domain | quote }}
+            {{- if .Values.components.grafanaOAuth }}
+            envFromSecret: grafana-oauth
+            grafana.ini:
+              server:
+                root_url: {{ printf "https://grafana-%s.%s" .Values.clusterName .Values.domain | quote }}
+              users:
+                auto_assign_org_role: {{ .Values.grafanaOAuth.autoAssignOrgRole | quote }}
+              auth.generic_oauth:
+                enabled: true
+                name: SSO
+                client_id: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_ID}
+                client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+                scopes: {{ .Values.grafanaOAuth.scopes | quote }}
+                auth_url: {{ .Values.grafanaOAuth.authUrl | quote }}
+                token_url: {{ .Values.grafanaOAuth.tokenUrl | quote }}
+                api_url: {{ .Values.grafanaOAuth.apiUrl | quote }}
+                allowed_domains: {{ .Values.grafanaOAuth.allowedDomains | quote }}
+                allow_sign_up: true
+                use_pkce: true
+                auto_assign_org_role: {{ .Values.grafanaOAuth.autoAssignOrgRole | quote }}
+                role_attribute_path: ""
+            {{- end }}
+          prometheus:
+            ingress:
+              annotations:
+                cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer | quote }}
+                {{- if .Values.components.monitoringMiddleware }}
+                traefik.ingress.kubernetes.io/router.middlewares: monitoring-monitoring-basic-auth@kubernetescrd
+                {{- end }}
+              hosts:
+                - {{ printf "prometheus-%s.%s" .Values.clusterName .Values.domain | quote }}
+              tls:
+                - secretName: prometheus-tls
+                  hosts:
+                    - {{ printf "prometheus-%s.%s" .Values.clusterName .Values.domain | quote }}
+            prometheusSpec:
+              externalLabels:
+                cluster: {{ .Values.clusterName | quote }}
+                environment: {{ .Values.environment | quote }}
+          alertmanager:
+            ingress:
+              annotations:
+                cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer | quote }}
+                {{- if .Values.components.monitoringMiddleware }}
+                traefik.ingress.kubernetes.io/router.middlewares: monitoring-monitoring-basic-auth@kubernetescrd
+                {{- end }}
+              hosts:
+                - {{ printf "alertmanager-%s.%s" .Values.clusterName .Values.domain | quote }}
+              tls:
+                - secretName: alertmanager-tls
+                  hosts:
+                    - {{ printf "alertmanager-%s.%s" .Values.clusterName .Values.domain | quote }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: {{ .Values.versions.loki }}
+      helm:
+        valueFiles:
+          - $values/values/loki/values.yaml
+          - $values/values/loki/values-{{ .Values.cloudProvider }}.yaml
+{{ if and .Values.lokiBucketNames.chunks .Values.lokiBucketNames.ruler }}
+        valuesObject:
+          loki:
+            storage:
+              bucketNames:
+                chunks: {{ .Values.lokiBucketNames.chunks | quote }}
+                ruler: {{ .Values.lokiBucketNames.ruler | quote }}
+{{- if .Values.objectStorage.endpoint }}
+              s3:
+                endpoint: {{ trimPrefix "https://" .Values.objectStorage.endpoint | quote }}
+{{- if .Values.objectStorage.region }}
+                region: {{ .Values.objectStorage.region | quote }}
+{{- end }}
+{{- end }}
+{{ else }}
+          - $values/clusters/{{ .Values.clusterName }}/loki-values.yaml
+{{ end }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alloy
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: alloy
+      targetRevision: {{ .Values.versions.alloy }}
+      helm:
+        valueFiles:
+          - $values/values/alloy/values.yaml
+        valuesObject:
+          controller:
+            extraEnv:
+              - name: CLUSTER_NAME
+                value: {{ .Values.clusterName | quote }}
+              - name: ENVIRONMENT
+                value: {{ .Values.environment | quote }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{{- end }}
+---
+{{- if .Values.components.platformAlerts }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-alerts
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/platform-alerts
+      helm:
+        parameters:
+          - name: services.cnpg
+            value: {{ .Values.components.cnpg | quote }}
+          - name: services.dragonfly
+            value: {{ .Values.components.dragonfly | quote }}
+          - name: services.nats
+            value: {{ .Values.components.nats | quote }}
+          - name: services.typesense
+            value: {{ .Values.components.typesense | quote }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+{{- end }}

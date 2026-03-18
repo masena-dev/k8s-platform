@@ -1,0 +1,99 @@
+{{- if .Values.alerts.infrastructure }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-infrastructure
+  namespace: {{ .Values.monitoring.namespace }}
+  labels:
+    app: kube-prometheus-stack
+    release: prometheus-stack
+spec:
+  groups:
+    - name: infrastructure.pvc
+      interval: 30s
+      rules:
+        - alert: PVCUsageWarning
+          expr: |
+            (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > {{ .Values.thresholds.pvcUsageWarningPercent }}
+          for: 15m
+          labels:
+            severity: warning
+            component: storage
+          annotations:
+            summary: 'PVC {{ `{{ $labels.persistentvolumeclaim }}` }} usage high'
+            description: 'PVC {{ `{{ $labels.persistentvolumeclaim }}` }} in {{ `{{ $labels.namespace }}` }} is {{ `{{ $value | printf "%.1f" }}` }}% full.'
+
+        - alert: PVCUsageCritical
+          expr: |
+            (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > {{ .Values.thresholds.pvcUsageCriticalPercent }}
+          for: 5m
+          labels:
+            severity: critical
+            component: storage
+          annotations:
+            summary: 'PVC {{ `{{ $labels.persistentvolumeclaim }}` }} almost full'
+            description: 'PVC {{ `{{ $labels.persistentvolumeclaim }}` }} in {{ `{{ $labels.namespace }}` }} is {{ `{{ $value | printf "%.1f" }}` }}% full.'
+
+    - name: infrastructure.nodes
+      interval: 30s
+      rules:
+        - alert: NodeMemoryPressure
+          expr: |
+            kube_node_status_condition{condition="MemoryPressure", status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: infrastructure
+          annotations:
+            summary: 'Node {{ `{{ $labels.node }}` }} under memory pressure'
+            description: 'Node {{ `{{ $labels.node }}` }} is experiencing memory pressure.'
+
+        - alert: NodeDiskPressure
+          expr: |
+            kube_node_status_condition{condition="DiskPressure", status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: infrastructure
+          annotations:
+            summary: 'Node {{ `{{ $labels.node }}` }} under disk pressure'
+            description: 'Node {{ `{{ $labels.node }}` }} is experiencing disk pressure.'
+
+        - alert: NodePIDPressure
+          expr: |
+            kube_node_status_condition{condition="PIDPressure", status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: infrastructure
+          annotations:
+            summary: 'Node {{ `{{ $labels.node }}` }} under PID pressure'
+            description: 'Node {{ `{{ $labels.node }}` }} is running low on available PIDs.'
+
+        - alert: NodeNetworkUnavailable
+          expr: |
+            kube_node_status_condition{condition="NetworkUnavailable", status="true"} == 1
+          for: 2m
+          labels:
+            severity: critical
+            component: infrastructure
+          annotations:
+            summary: 'Node {{ `{{ $labels.node }}` }} network unavailable'
+            description: 'Network on node {{ `{{ $labels.node }}` }} is not properly configured.'
+
+        - alert: CPUThrottlingHigh
+          expr: |
+            (
+              sum(increase(container_cpu_cfs_throttled_periods_total{container!=""}[5m])) by (namespace, pod, container)
+              /
+              sum(increase(container_cpu_cfs_periods_total{container!=""}[5m])) by (namespace, pod, container)
+            ) * 100 > {{ .Values.thresholds.cpuThrottlingPercent }}
+          for: 15m
+          labels:
+            severity: warning
+            component: resources
+          annotations:
+            summary: 'High CPU throttling for {{ `{{ $labels.pod }}` }}'
+            description: 'Container {{ `{{ $labels.container }}` }} in {{ `{{ $labels.pod }}` }} is being throttled {{ `{{ $value | printf "%.1f" }}` }}% of the time.'
+
+{{- end }}

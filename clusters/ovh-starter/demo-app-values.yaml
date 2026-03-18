@@ -1,0 +1,12 @@
+# Per-cluster values overlay for the demo-app (ovh-starter).
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+# Demo app consumes the normalized app secret contract in its own namespace.
+# Addons Terraform seeds `database-credentials`, and ESO can keep it in sync later.
+databaseSecret:
+  enabled: false

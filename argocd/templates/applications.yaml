@@ -1,0 +1,69 @@
+{{- if .Values.components.demoApp }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-app
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+  sources:
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      path: values/demo-app
+      helm:
+        valueFiles:
+          - $values/clusters/{{ .Values.clusterName }}/demo-app-values.yaml
+        parameters:
+          - name: ingress.enabled
+            value: "true"
+          - name: ingress.hosts[0].host
+            value: {{ printf "demo-%s.%s" .Values.clusterName .Values.domain | quote }}
+          - name: ingress.hosts[0].paths[0].path
+            value: "/"
+          - name: ingress.hosts[0].paths[0].pathType
+            value: "Prefix"
+          - name: ingress.tls[0].secretName
+            value: "demo-app-tls"
+          - name: ingress.tls[0].hosts[0]
+            value: {{ printf "demo-%s.%s" .Values.clusterName .Values.domain | quote }}
+    - repoURL: {{ .Values.repoURL }}
+      targetRevision: {{ .Values.targetRevision }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+---
+# Example: External repo application (uncomment and configure)
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: my-app
+#   namespace: argocd
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "3"
+# spec:
+#   project: apps
+#   source:
+#     repoURL: https://github.com/your-org/your-app
+#     targetRevision: main
+#     path: k8s/overlays/production
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: my-app
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#     syncOptions:
+#       - CreateNamespace=true

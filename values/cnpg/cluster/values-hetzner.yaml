@@ -1,0 +1,8 @@
+# Hetzner cloud overlay for CNPG
+# Uses Hetzner Object Storage (S3-compatible) for backups
+
+backup:
+  endpointURL: "https://fsn1.your-objectstorage.com"
+  destinationPath: "s3://cnpg-backups/"
+  s3:
+    region: fsn1  # Match the endpoint location code (nbg1/hel1 for other regions)

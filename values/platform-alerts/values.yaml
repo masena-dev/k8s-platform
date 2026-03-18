@@ -1,0 +1,23 @@
+monitoring:
+  namespace: monitoring
+
+# Toggle alert groups
+alerts:
+  critical: true
+  infrastructure: true
+
+# Thresholds
+thresholds:
+  diskSpaceLowPercent: 10
+  pvcUsageWarningPercent: 80
+  pvcUsageCriticalPercent: 90
+  cpuThrottlingPercent: 50
+  podRestartCount: 5
+  tlsCertExpiryDays: 14
+
+# Data layer toggles (match argocd/values.yaml components)
+services:
+  cnpg: false
+  dragonfly: false
+  nats: false
+  typesense: false

@@ -1,0 +1,93 @@
+# Git repository settings (set by Terraform during bootstrap)
+repoURL: ""
+targetRevision: "main"
+
+# Cloud provider overlay (set by Terraform: ovh, hetzner)
+cloudProvider: "ovh"
+
+# Cluster name (set by Terraform, used for per-cluster GitOps overlays)
+clusterName: ""
+
+# Base domain (set by Terraform; required for ingress hostnames + external-dns)
+domain: ""
+
+# Environment label injected into Prometheus externalLabels and Alloy logs.
+# Override per-cluster in clusters/{name}/values.yaml (e.g., "staging", "production").
+environment: "production"
+
+# cert-manager ClusterIssuer for all ingresses. Start with "letsencrypt-staging"
+# when bootstrapping a new cluster to avoid rate limits, then switch to
+# "letsencrypt-production" once routing and DNS are verified.
+clusterIssuer: "letsencrypt-staging"
+
+# Loki S3 bucket names (set by Terraform when object storage is provisioned)
+lokiBucketNames:
+  chunks: ""
+  ruler: ""
+
+# S3 endpoint details (set by Terraform when object storage is provisioned)
+objectStorage:
+  endpoint: ""
+  region: ""
+
+# CNPG backup bucket name (set by Terraform when object storage is provisioned)
+cnpgBackupBucketName: ""
+
+# 1Password vault name for ESO ClusterSecretStore (set by Terraform)
+onepasswordVaultId: ""
+
+# Optional: pin bootstrap secrets to specific 1Password item UUIDs.
+# This avoids ambiguous lookups when a vault contains multiple items with the
+# same title (common when re-bootstrapping without cleaning up old items).
+onepasswordItemUuids:
+  grafanaAdmin: ""
+  cloudflareApiToken: ""
+  monitoringBasicAuth: ""
+  grafanaOAuth: ""
+  argocdOidc: ""
+
+# Pinned chart versions
+versions:
+  certManager: "v1.19.4"
+  externalSecrets: "2.0.1"
+  traefik: "39.0.4"
+  externalDns: "1.20.0"
+  prometheusOperatorCrds: "27.0.0"
+  kubePrometheusStack: "82.9.0"
+  # NOTE: Loki chart migrating from grafana/loki to grafana-community/helm-charts
+  # after March 16, 2026. Track: https://github.com/grafana/loki/issues/20705
+  loki: "6.53.0"
+  alloy: "1.6.1"
+  cnpgOperator: "0.27.1"
+  dragonflyOperator: "v1.4.0"
+
+# Toggle components on/off
+components:
+  certManager: true
+  externalSecrets: true           # Day 1 default: ESO + 1Password SDK
+  platformSecrets: true
+  bootstrapSecrets: true
+  traefik: true
+  externalDns: true
+  monitoring: true
+  grafanaOAuth: false            # Set by Terraform when Grafana OAuth client credentials are provided
+  monitoringMiddleware: true      # basicAuth middleware for Prometheus/AlertManager ingress
+  platformAlerts: true            # PrometheusRule alerts for the platform
+  argocdIngress: true             # Ingress for the ArgoCD UI
+  demoApp: false
+  # Data layer (enable per-service as needed)
+  cnpg: false
+  dragonfly: false
+  typesense: false
+  nats: false
+
+grafanaOAuth:
+  allowedDomains: ""
+  authUrl: "https://accounts.google.com/o/oauth2/v2/auth"
+  tokenUrl: "https://oauth2.googleapis.com/token"
+  apiUrl: "https://openidconnect.googleapis.com/v1/userinfo"
+  scopes: "openid email profile"
+  autoAssignOrgRole: "Editor"
+
+# Let's Encrypt email for cert-manager issuers
+letsencryptEmail: "ops@your-company.com"

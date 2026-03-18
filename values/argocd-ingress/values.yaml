@@ -1,0 +1,7 @@
+# ArgoCD Ingress Configuration
+#
+# Defaults are safe (staging issuer). The ArgoCD Application overrides
+# host and clusterIssuer dynamically from cluster values.
+host: argocd.your-domain.com
+clusterIssuer: letsencrypt-staging
+ingressClassName: traefik

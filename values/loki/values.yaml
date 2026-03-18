@@ -1,0 +1,127 @@
+# Loki - SingleBinary HA deployment with S3-compatible storage
+#
+# Prerequisites:
+#   The recommended approach is to use External Secrets Operator (Day 1 default):
+#   ESO syncs the loki-storage-credentials Secret from 1Password automatically.
+#   See values/bootstrap-secrets/ and docs/credential-flow.md
+#
+#   Fallback (manual): Create the Secret directly if ESO is not configured:
+#   kubectl create namespace monitoring
+#   kubectl create secret generic loki-storage-credentials -n monitoring \
+#     --from-literal=AWS_ACCESS_KEY_ID=<your-key> \
+#     --from-literal=AWS_SECRET_ACCESS_KEY=<your-secret>
+#
+# S3-compatible storage works with: OVH Object Storage, AWS S3, GCP (S3 compat),
+# Hetzner Object Storage, DigitalOcean Spaces, MinIO, etc.
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+    path_prefix: /var/loki
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  pattern_ingester:
+    enabled: true
+  limits_config:
+    allow_structured_metadata: true
+    volume_enabled: true
+    retention_period: 168h  # 7 days (adjust for your needs)
+    max_query_parallelism: 32
+  compactor:
+    retention_enabled: true
+    # delete_request_store must be set when retention is enabled.
+    # Set in cloud overlay (values-<cloud>.yaml) to match the storage backend.
+  querier:
+    max_concurrent: 4
+  # S3-compatible object storage
+  # Cloud-specific settings (endpoint, region, buckets) come from
+  # the cloud overlay file: values-<cloudProvider>.yaml
+  storage:
+    type: s3
+  storage_config:
+    tsdb_shipper:
+      active_index_directory: /var/loki/tsdb-index
+      cache_location: /var/loki/tsdb-cache
+
+# Gateway (stable ingestion endpoint for Alloy)
+gateway:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# SingleBinary (2 replicas with pod anti-affinity for HA)
+singleBinary:
+  replicas: 2
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 150m
+      memory: 384Mi
+    limits:
+      cpu: 750m
+      memory: 768Mi
+  extraEnv:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: loki-storage-credentials
+          key: AWS_ACCESS_KEY_ID
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: loki-storage-credentials
+          key: AWS_SECRET_ACCESS_KEY
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: single-binary
+          topologyKey: kubernetes.io/hostname
+
+# Disable SimpleScalable components
+write:
+  replicas: 0
+read:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Disable caching (enable for high-traffic production)
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Disable embedded MinIO (using external S3-compatible storage)
+minio:
+  enabled: false
+
+# Prometheus ServiceMonitor for Loki health metrics
+monitoring:
+  serviceMonitor:
+    enabled: true
+
+lokiCanary:
+  enabled: false
+
+test:
+  enabled: false

@@ -1,0 +1,14 @@
+{{- /*
+Required values for the root chart.
+
+This chart is rendered by ArgoCD (created by Terraform bootstrap). We fail fast
+so misconfigurations show up immediately during initial sync.
+*/ -}}
+{{- $repoURL := required "repoURL is required (set by Terraform argocd-bootstrap)" .Values.repoURL -}}
+{{- $clusterName := required "clusterName is required (set by Terraform argocd-bootstrap)" .Values.clusterName -}}
+{{- $domain := required "domain is required (set TF_VAR_domain; used for ingress hostnames)" .Values.domain -}}
+{{- $email := required "letsencryptEmail is required (set by Terraform argocd-bootstrap)" .Values.letsencryptEmail -}}
+{{- if and .Values.components.monitoring (or .Values.lokiBucketNames.chunks .Values.lokiBucketNames.ruler) -}}
+{{- $lokiChunks := required "lokiBucketNames.chunks is required when bucket names are provided (set by Terraform from object storage outputs)" .Values.lokiBucketNames.chunks -}}
+{{- $lokiRuler := required "lokiBucketNames.ruler is required when bucket names are provided (set by Terraform from object storage outputs)" .Values.lokiBucketNames.ruler -}}
+{{- end -}}

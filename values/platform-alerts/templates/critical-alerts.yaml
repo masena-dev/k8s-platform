@@ -1,0 +1,183 @@
+{{- if .Values.alerts.critical }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-critical
+  namespace: {{ .Values.monitoring.namespace }}
+  labels:
+    app: kube-prometheus-stack
+    release: prometheus-stack
+spec:
+  groups:
+    - name: critical.infrastructure
+      interval: 30s
+      rules:
+        - alert: NodeDown
+          expr: up{job="node-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: infrastructure
+          annotations:
+            summary: 'Node {{ `{{ $labels.instance }}` }} is down'
+            description: 'Node exporter on {{ `{{ $labels.instance }}` }} has been unreachable for 5 minutes.'
+
+        - alert: DiskSpaceLow
+          expr: |
+            (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < {{ .Values.thresholds.diskSpaceLowPercent }}
+          for: 5m
+          labels:
+            severity: critical
+            component: infrastructure
+          annotations:
+            summary: 'Disk space low on {{ `{{ $labels.instance }}` }}'
+            description: 'Disk space on {{ `{{ $labels.device }}` }} is below {{ .Values.thresholds.diskSpaceLowPercent }}%.'
+
+        - alert: PodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total[1h]) > {{ .Values.thresholds.podRestartCount }}
+          for: 5m
+          labels:
+            severity: critical
+            component: application
+          annotations:
+            summary: 'Pod {{ `{{ $labels.pod }}` }} is crash looping'
+            description: 'Pod {{ `{{ $labels.pod }}` }} in namespace {{ `{{ $labels.namespace }}` }} has restarted {{ `{{ $value }}` }} times in the last hour.'
+
+        - alert: TraefikAllReplicasDown
+          expr: |
+            kube_deployment_status_replicas_ready{namespace="traefik", deployment="traefik"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            component: ingress
+          annotations:
+            summary: 'Traefik has zero ready replicas'
+            description: 'All Traefik pods are down. External traffic cannot reach any service.'
+
+        - alert: TraefikDegraded
+          expr: |
+            (
+              kube_deployment_status_replicas_ready{namespace="traefik", deployment="traefik"}
+              <
+              kube_deployment_spec_replicas{namespace="traefik", deployment="traefik"}
+            )
+            and
+            kube_deployment_status_replicas_ready{namespace="traefik", deployment="traefik"} > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: ingress
+          annotations:
+            summary: 'Traefik has fewer ready replicas than desired'
+            description: 'Traefik has {{ `{{ $value }}` }} ready replicas but spec requires more. Redundancy is reduced.'
+
+        - alert: TraefikPodRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="traefik", container="traefik"}[1h]) > 3
+          for: 5m
+          labels:
+            severity: warning
+            component: ingress
+          annotations:
+            summary: 'Traefik pod is restarting frequently'
+            description: 'Traefik pod {{ `{{ $labels.pod }}` }} has restarted {{ `{{ $value | humanize }}` }} times in the last hour.'
+
+        - alert: TraefikHighMemoryUsage
+          expr: |
+            (
+              max by (pod, namespace) (container_memory_working_set_bytes{namespace="traefik", container="traefik"})
+              /
+              max by (pod, namespace) (kube_pod_container_resource_limits{namespace="traefik", container="traefik", resource="memory"})
+            ) > 0.80
+          for: 10m
+          labels:
+            severity: warning
+            component: ingress
+          annotations:
+            summary: 'Traefik pod memory usage is high'
+            description: 'Traefik pod {{ `{{ $labels.pod }}` }} is using {{ `{{ $value | humanizePercentage }}` }} of its memory limit. Risk of OOM kill.'
+
+        - alert: TLSCertificateExpiring
+          expr: |
+            (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400 < {{ .Values.thresholds.tlsCertExpiryDays }}
+          for: 1h
+          labels:
+            severity: warning
+            component: security
+          annotations:
+            summary: 'TLS certificate {{ `{{ $labels.name }}` }} expiring soon'
+            description: 'Certificate {{ `{{ $labels.name }}` }} in {{ `{{ $labels.namespace }}` }} expires in {{ `{{ $value | humanize }}` }} days.'
+
+    {{- if .Values.services.cnpg }}
+    - name: critical.cnpg
+      interval: 30s
+      rules:
+        - alert: PostgreSQLDown
+          expr: |
+            cnpg_collector_up == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: database
+          annotations:
+            summary: 'PostgreSQL cluster {{ `{{ $labels.cluster }}` }} is down'
+            description: 'CNPG cluster {{ `{{ $labels.cluster }}` }} in {{ `{{ $labels.namespace }}` }} is not responding.'
+
+        - alert: PostgreSQLBackupFailure
+          expr: |
+            cnpg_pg_database_backup_last_status{} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: database
+          annotations:
+            summary: 'PostgreSQL backup failed for {{ `{{ $labels.cluster }}` }}'
+            description: 'Last backup for CNPG cluster {{ `{{ $labels.cluster }}` }} failed.'
+    {{- end }}
+
+    {{- if .Values.services.dragonfly }}
+    - name: critical.dragonfly
+      interval: 30s
+      rules:
+        - alert: DragonflyDBDown
+          expr: up{job=~".*dragonfly.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: cache
+          annotations:
+            summary: 'DragonflyDB instance is down'
+            description: 'DragonflyDB {{ `{{ $labels.instance }}` }} has been unreachable for 2 minutes.'
+    {{- end }}
+
+    {{- if .Values.services.nats }}
+    - name: critical.nats
+      interval: 30s
+      rules:
+        - alert: NATSClusterDown
+          expr: up{job=~".*nats.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: messaging
+          annotations:
+            summary: 'NATS cluster is down'
+            description: 'NATS server {{ `{{ $labels.instance }}` }} has been unreachable for 2 minutes.'
+    {{- end }}
+
+    {{- if .Values.services.typesense }}
+    - name: critical.typesense
+      interval: 30s
+      rules:
+        - alert: TypesenseDown
+          expr: up{job=~".*typesense.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: search
+          annotations:
+            summary: 'Typesense search is down'
+            description: 'Typesense {{ `{{ $labels.instance }}` }} has been unreachable for 2 minutes.'
+    {{- end }}
+{{- end }}

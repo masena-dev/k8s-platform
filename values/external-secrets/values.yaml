@@ -1,0 +1,20 @@
+# External Secrets Operator
+# Syncs secrets from external providers (1Password, AWS SM, GCP SM, Vault)
+# into Kubernetes Secrets via ExternalSecret/ClusterSecretStore CRDs.
+
+installCRDs: true
+
+webhook:
+  port: 9443
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+serviceMonitor:
+  enabled: true
+
+# The operator watches all namespaces by default

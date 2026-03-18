@@ -1,0 +1,14 @@
+service:
+  annotations:
+    # OVH Load Balancer annotations
+    loadbalancer.openstack.org/proxy-protocol: "true"
+
+# OVH's OpenStack load balancer injects PROXY protocol headers. Traefik must be
+# configured to parse them; otherwise external traffic returns 400.
+ports:
+  web:
+    proxyProtocol:
+      insecure: true
+  websecure:
+    proxyProtocol:
+      insecure: true

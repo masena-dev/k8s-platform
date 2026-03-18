@@ -1,0 +1,16 @@
+# Hetzner cloud overlay for External DNS
+# Uses Cloudflare as DNS provider for cross-cloud portability.
+#
+# Prerequisites:
+#   The cloudflare-api-token secret is created automatically by Terraform
+#   in the addons stage (TF_VAR_cloudflare_api_token).
+
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: cloudflare_api_token

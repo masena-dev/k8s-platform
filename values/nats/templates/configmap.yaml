@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.nats.name }}-config
+data:
+  nats.conf: |
+    listen: 0.0.0.0:{{ .Values.nats.port }}
+    http: 0.0.0.0:{{ .Values.nats.monitorPort }}
+
+    {{- if .Values.nats.auth.enabled }}
+    authorization {
+      token: $NATS_TOKEN
+    }
+    {{- end }}
+
+    cluster {
+      name: {{ .Values.nats.name }}
+      listen: 0.0.0.0:{{ .Values.nats.clusterPort }}
+
+      {{- $replicas := int .Values.nats.replicas }}
+      {{- $name := .Values.nats.name }}
+      {{- $clusterPort := int .Values.nats.clusterPort }}
+      {{- $routes := list }}
+      {{- range $i := until $replicas }}
+      {{- $routes = append $routes (printf "nats://%s-%d.%s:%d" $name $i $name $clusterPort) }}
+      {{- end }}
+      routes = [{{ join ", " $routes }}]
+    }
+
+    {{- if .Values.nats.jetstream.enabled }}
+    jetstream {
+      store_dir: /data
+      max_file_store: {{ .Values.nats.jetstream.storage.maxFileStore }}
+    }
+    {{- end }}

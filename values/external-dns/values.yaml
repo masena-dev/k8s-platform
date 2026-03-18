@@ -1,0 +1,19 @@
+# Base external-dns config (cloud-agnostic)
+# Provider-specific settings come from values-<cloudProvider>.yaml overlay
+
+sources:
+  - ingress
+
+policy: sync
+registry: txt
+txtOwnerId: k8s-platform
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+serviceMonitor:
+  enabled: true

@@ -1,0 +1,4 @@
+apiVersion: v2
+name: platform-alerts
+description: PrometheusRule alerts for the starter kit platform
+version: 0.1.0

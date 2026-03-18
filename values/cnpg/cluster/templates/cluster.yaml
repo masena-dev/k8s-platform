@@ -1,0 +1,98 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cluster.name }}
+spec:
+  instances: {{ .Values.cluster.instances }}
+  imageName: {{ .Values.cluster.imageName }}
+
+  {{- if .Values.cluster.bootstrap.credentialsSecretName }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.cluster.bootstrap.database | quote }}
+      owner: {{ .Values.cluster.bootstrap.owner | quote }}
+      secret:
+        name: {{ .Values.cluster.bootstrap.credentialsSecretName | quote }}
+  {{- end }}
+
+  postgresql:
+    parameters:
+      {{- include "cnpg.autoTuneParams" . | nindent 6 }}
+      {{- range $key, $value := .Values.cluster.postgresql.parameters }}
+      {{- if and (ne $key "shared_buffers") (ne $key "effective_cache_size") (ne $key "maintenance_work_mem") }}
+      {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
+
+  resources:
+    requests:
+      cpu: {{ .Values.cluster.resources.requests.cpu }}
+      memory: {{ .Values.cluster.resources.requests.memory }}
+    limits:
+      memory: {{ .Values.cluster.resources.limits.memory }}
+
+  storage:
+    size: {{ .Values.cluster.storage.size }}
+    {{- if .Values.cluster.storage.storageClass }}
+    storageClass: {{ .Values.cluster.storage.storageClass }}
+    {{- end }}
+
+  walStorage:
+    size: {{ .Values.cluster.walStorage.size }}
+    {{- if or .Values.cluster.walStorage.storageClass .Values.cluster.storage.storageClass }}
+    storageClass: {{ .Values.cluster.walStorage.storageClass | default .Values.cluster.storage.storageClass }}
+    {{- end }}
+
+  {{- if or .Values.cluster.nodeSelector .Values.cluster.tolerations }}
+  affinity:
+    {{- if .Values.cluster.nodeSelector }}
+    nodeSelector:
+      {{- toYaml .Values.cluster.nodeSelector | nindent 6 }}
+    {{- end }}
+    {{- if .Values.cluster.tolerations }}
+    tolerations:
+      {{- toYaml .Values.cluster.tolerations | nindent 6 }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.cluster.serviceAccountAnnotations }}
+  serviceAccountTemplate:
+    metadata:
+      annotations:
+        {{- toYaml .Values.cluster.serviceAccountAnnotations | nindent 8 }}
+  {{- end }}
+
+  {{- if .Values.backup.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: {{ .Values.backup.destinationPath }}
+      {{- if .Values.backup.endpointURL }}
+      endpointURL: {{ .Values.backup.endpointURL }}
+      {{- end }}
+      {{- if .Values.backup.inheritFromIAMRole }}
+      s3Credentials:
+        inheritFromIAMRole: true
+      {{- else if .Values.backup.googleCredentials }}
+      googleCredentials:
+        {{- toYaml .Values.backup.googleCredentials | nindent 8 }}
+      {{- else if .Values.backup.s3.region }}
+      s3Credentials:
+        region:
+          name: cnpg-backup-credentials
+          key: REGION
+        accessKeyId:
+          name: cnpg-backup-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-backup-credentials
+          key: ACCESS_SECRET_KEY
+      {{- end }}
+      wal:
+        compression: {{ .Values.backup.compression | quote }}
+      data:
+        compression: {{ .Values.backup.compression | quote }}
+    retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}
+  {{- end }}
+
+  monitoring:
+    enablePodMonitor: {{ .Values.cluster.monitoring.enabled }}

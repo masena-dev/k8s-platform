@@ -1,0 +1,49 @@
+# DragonflyDB - Redis-compatible in-memory datastore
+# Multi-threaded architecture: better throughput per node than Redis/Valkey.
+# cache_mode=true enables automatic eviction when memory fills.
+
+dragonfly:
+  name: dragonfly
+  replicas: 2
+  image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.36.11
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+  args:
+    - "--cache_mode"          # Auto-eviction when memory fills (no OOM crashes)
+    - "--maxmemory=900Mi"     # Leave headroom below limit for overhead
+    - "--proactor_threads=2"  # Match CPU request
+
+  # Authentication
+  auth:
+    enabled: true
+    # Password is read from the secret below
+    passwordSecretRef:
+      name: dragonfly-auth
+      key: password
+
+  storage:
+    enabled: false  # Pure cache — no persistence needed with cache_mode
+
+  # Node scheduling (overridden by cloud overlays)
+  nodeSelector: {}
+  tolerations: []
+
+  # Pod anti-affinity for HA (spread across nodes)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - dragonfly
+            topologyKey: kubernetes.io/hostname

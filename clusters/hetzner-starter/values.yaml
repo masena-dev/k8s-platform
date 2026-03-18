@@ -1,0 +1,19 @@
+# Per-cluster ArgoCD values overlay for hetzner-starter
+#
+# This file is loaded by the ArgoCD root Application as a secondary values source,
+# overriding defaults from argocd/values.yaml.
+
+cloudProvider: "hetzner"
+
+# Hetzner cluster is validated — use production certs.
+# Start new clusters on letsencrypt-staging, then switch to production once
+# DNS, ingress, and OIDC are confirmed working.
+clusterIssuer: "letsencrypt-production"
+
+components:
+  demoApp: true
+  # cnpg: true  # Requires enable_object_storage + enable_storage_nodes (cluster) and enable_storage_class_aliases (addons)
+
+# `demoApp` is on here so a fresh bootstrap exercises ingress, TLS, and app
+# rollout. If you fork and make the image private, add `imagePullSecrets` in
+# `clusters/hetzner-starter/demo-app-values.yaml`.

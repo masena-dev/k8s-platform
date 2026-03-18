@@ -1,0 +1,5 @@
+apiVersion: v2
+name: typesense-cluster
+description: Typesense search engine cluster with Raft consensus
+type: application
+version: 0.1.0

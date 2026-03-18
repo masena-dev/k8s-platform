@@ -1,0 +1,41 @@
+# NATS - Lightweight messaging with JetStream persistence
+# Deploys a 3-node NATS cluster with JetStream file store.
+# Token auth should be managed via ESO (ExternalSecret) in production.
+
+nats:
+  name: nats
+  replicas: 3
+  image: nats:2.12-alpine
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  # Client port
+  port: 4222
+  # Cluster peering port
+  clusterPort: 6222
+  # Monitoring port
+  monitorPort: 8222
+
+  # JetStream file-based persistence
+  jetstream:
+    enabled: true
+    storage:
+      size: 10Gi              # PVC size (Kubernetes notation)
+      maxFileStore: 10737418240  # NATS max_file_store in bytes (= 10 GiB)
+      # storageClass: "" # Uses cluster default
+
+  # Authentication
+  auth:
+    enabled: true
+    tokenSecretRef:
+      name: nats-auth-token
+      key: token
+
+  # Node scheduling (overridden by cloud overlays)
+  nodeSelector: {}
+  tolerations: []

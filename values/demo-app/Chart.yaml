@@ -1,0 +1,6 @@
+apiVersion: v2
+name: demo-app
+description: Demo app — validates ingress, TLS, DNS, and database connectivity
+type: application
+version: 0.1.0
+appVersion: "1.0.1"

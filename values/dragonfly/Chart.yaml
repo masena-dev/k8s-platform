@@ -1,0 +1,5 @@
+apiVersion: v2
+name: dragonfly
+description: DragonflyDB in-memory cache (Redis-compatible, multi-threaded)
+type: application
+version: 0.1.0

@@ -1,0 +1,8 @@
+# OVH cloud overlay for CNPG
+# Uses OVH Object Storage (S3-compatible) for backups
+
+backup:
+  endpointURL: "https://s3.gra.perf.cloud.ovh.net"
+  destinationPath: "s3://cnpg-backups/"
+  s3:
+    region: gra

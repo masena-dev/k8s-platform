@@ -1,0 +1,65 @@
+service:
+  type: LoadBalancer
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+# HA: 2 replicas minimum for ingress availability during node drains
+deployment:
+  replicas: 2
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - traefik
+        topologyKey: kubernetes.io/hostname
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+providers:
+  kubernetesIngress:
+    publishedService:
+      enabled: true
+
+ports:
+  websecure:
+    http:
+      tls:
+        enabled: true
+
+# TLS hardening
+tlsOptions:
+  default:
+    minVersion: VersionTLS12
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Access logs for request-level visibility
+logs:
+  access:
+    enabled: true
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    service:
+      enabled: true
+    serviceMonitor:
+      # kube-prometheus-stack is installed after Traefik (sync wave 0 vs -1).
+      # Creating a ServiceMonitor here would fail before the CRD exists.
+      # We create Traefik scraping via kube-prometheus-stack `additionalServiceMonitors` instead.
+      enabled: false

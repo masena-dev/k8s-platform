@@ -1,0 +1,80 @@
+# ArgoCD AppProjects — least-privilege boundaries for platform vs workloads.
+#
+# "platform" controls infrastructure operators and shared services that
+# workload namespaces depend on. "apps" scopes workload deployments so
+# they can't accidentally modify cluster-critical namespaces.
+#
+# The "default" project is intentionally unused — keeping it locked down
+# prevents accidental privilege escalation.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Cluster infrastructure — operators, networking, secrets, monitoring
+  sourceRepos:
+    - "*"
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: cert-manager
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: external-secrets
+    - server: https://kubernetes.default.svc
+      namespace: traefik
+    - server: https://kubernetes.default.svc
+      namespace: external-dns
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: cnpg-system
+    # bootstrap-secrets needs database access for CNPG backup credentials.
+    # Keep this allow-list explicit rather than broadening the project scope.
+    - server: https://kubernetes.default.svc
+      namespace: database
+    - server: https://kubernetes.default.svc
+      namespace: dragonfly-operator-system
+    - server: https://kubernetes.default.svc
+      namespace: demo
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Workload applications — demo app, databases, caches, user services
+  sourceRepos:
+    - "*"
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: postgresql.cnpg.io
+      kind: "*"
+    - group: dragonflydb.io
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

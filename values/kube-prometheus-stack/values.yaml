@@ -1,0 +1,212 @@
+# kube-prometheus-stack - Prometheus, Grafana, AlertManager
+#
+# Prerequisites:
+#   Create a Grafana admin Secret before deploying:
+#   kubectl create namespace monitoring
+#   kubectl create secret generic grafana-admin -n monitoring \
+#     --from-literal=username=admin \
+#     --from-literal=password=<your-password>
+#
+#   Or use External Secrets Operator to sync from 1Password (Day 1 default):
+#   See values/external-secrets/ and docs/credential-flow.md
+
+# Grafana
+grafana:
+  enabled: true
+  admin:
+    existingSecret: grafana-admin
+    userKey: username
+    passwordKey: password
+  persistence:
+    enabled: true
+    size: 5Gi
+  deploymentStrategy:
+    type: Recreate  # Required for ReadWriteOnce PVC
+  # Ingress — NO basicAuth (Grafana has its own authentication)
+  # hosts and tls are injected dynamically by the ArgoCD app from cluster values
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.tls: "true"
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-gateway.monitoring.svc.cluster.local:80
+      access: proxy
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # OAuth for Grafana is injected dynamically by the ArgoCD Application when
+  # components.grafanaOAuth=true (see argocd/templates/platform.yaml).
+
+# Prometheus
+prometheus:
+  # Ingress — hosts, tls, and middleware annotation are injected dynamically by
+  # the ArgoCD app from cluster values (see argocd/templates/platform.yaml).
+  # The basicAuth middleware annotation is only added when monitoringMiddleware is enabled.
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.tls: "true"
+  prometheusSpec:
+    retention: 15d
+    retentionSize: 40GB
+    externalLabels:
+      # cluster and environment are injected dynamically by the ArgoCD app
+      # from .Values.clusterName and .Values.environment
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 50Gi
+    # Discover all ServiceMonitors/PodMonitors/ProbeMonitors globally
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+  # Create ServiceMonitors for components installed before kube-prometheus-stack.
+  additionalServiceMonitors:
+    - name: traefik
+      namespaceSelector:
+        matchNames:
+          - traefik
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+          app.kubernetes.io/component: metrics
+      endpoints:
+        - port: metrics
+          path: /metrics
+          interval: 30s
+
+# AlertManager
+alertmanager:
+  # Ingress — hosts, tls, and middleware annotation are injected dynamically by
+  # the ArgoCD app from cluster values (see argocd/templates/platform.yaml).
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.tls: "true"
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: 'null'
+      group_by: ['alertname', 'cluster', 'namespace']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      routes:
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: 'null'
+          repeat_interval: 168h
+        # Uncomment after configuring Slack (see docs/monitoring.md):
+        # - matchers:
+        #     - severity = "critical"
+        #   receiver: 'slack-critical'
+        #   group_wait: 5s
+        #   repeat_interval: 4h
+        # - matchers:
+        #     - severity = "warning"
+        #   receiver: 'slack-warning'
+        #   repeat_interval: 12h
+    receivers:
+      - name: 'null'
+      # - name: 'slack-critical'
+      #   slack_configs:
+      #     - send_resolved: true
+      #       api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/webhook_url
+      #       channel: '#alerts-critical'
+      #       username: 'Alerts'
+      #       icon_emoji: ':rotating_light:'
+      # - name: 'slack-warning'
+      #   slack_configs:
+      #     - send_resolved: true
+      #       api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/webhook_url
+      #       channel: '#alerts'
+      #       username: 'Alerts'
+      #       icon_emoji: ':warning:'
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    # Uncomment to mount Slack webhook secret:
+    # secrets:
+    #   - alertmanager-slack-webhook
+    storage:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 2Gi
+
+# Prometheus Operator
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Node Exporter
+# CPU limit intentionally omitted — node-exporter bursts briefly during scrape
+# intervals causing CFS throttling at any reasonable CPU limit. Memory-only limit
+# is the correct pattern for this workload.
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# Managed K8s tuning — disable scraping and alerting for components that are
+# inaccessible on managed Kubernetes (OVH, GKE, EKS, AKS).  Without this,
+# Prometheus fires false-positive alerts against absent metrics on day one.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false

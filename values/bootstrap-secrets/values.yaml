@@ -1,0 +1,145 @@
+# 1Password vault and secret store configuration
+secretStoreName: onepassword
+secretStoreKind: ClusterSecretStore
+
+# How often ESO should refresh these secrets.
+# Keep this relatively short so initial bootstrap converges quickly.
+refreshInterval: 5m
+
+# Each secret to sync from 1Password
+# Keys match the 1Password item title
+secrets:
+  grafanaAdmin:
+    enabled: true
+    name: grafana-admin
+    namespace: monitoring
+    onepasswordItem: ""  # Set per-cluster, e.g., "grafana-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: username
+        remoteRef:
+          property: username
+      - secretKey: password
+        remoteRef:
+          property: password
+
+  grafanaOAuth:
+    enabled: false
+    name: grafana-oauth
+    namespace: monitoring
+    onepasswordItem: ""  # Set per-cluster, e.g., "grafana-oidc-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+        remoteRef:
+          property: client_id
+      - secretKey: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+        remoteRef:
+          property: client_secret
+
+  lokiStorage:
+    enabled: true
+    name: loki-storage-credentials
+    namespace: monitoring
+    onepasswordItem: ""  # Set per-cluster, e.g., "loki-s3-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: AWS_ACCESS_KEY_ID
+        remoteRef:
+          property: AWS_ACCESS_KEY_ID
+      - secretKey: AWS_SECRET_ACCESS_KEY
+        remoteRef:
+          property: AWS_SECRET_ACCESS_KEY
+
+  cnpgBackup:
+    enabled: false
+    name: cnpg-backup-credentials
+    namespace: database
+    onepasswordItem: ""  # Set per-cluster, typically reusing the Loki S3 item
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: REGION
+        remoteRef:
+          property: AWS_REGION
+      - secretKey: ACCESS_KEY_ID
+        remoteRef:
+          property: AWS_ACCESS_KEY_ID
+      # Prefer ACCESS_SECRET_KEY for consistency with current CNPG examples.
+      # Keep SECRET_ACCESS_KEY as a compatibility alias while older clusters converge.
+      - secretKey: ACCESS_SECRET_KEY
+        remoteRef:
+          property: AWS_SECRET_ACCESS_KEY
+      - secretKey: SECRET_ACCESS_KEY
+        remoteRef:
+          property: AWS_SECRET_ACCESS_KEY
+
+  cloudflareApiToken:
+    enabled: true
+    name: cloudflare-api-token
+    namespace: external-dns
+    onepasswordItem: ""  # Set per-cluster, e.g., "cloudflare-dns-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: cloudflare_api_token
+        remoteRef:
+          property: credential
+
+  argocdOidc:
+    enabled: false
+    name: argocd-oidc-secret
+    namespace: argocd
+    onepasswordItem: ""  # Set per-cluster, e.g., "argocd-oidc-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels:
+      app.kubernetes.io/part-of: argocd
+    data:
+      - secretKey: clientSecret
+        remoteRef:
+          property: client_secret
+
+  database:
+    enabled: false
+    name: database-credentials
+    namespace: demo
+    onepasswordItem: ""  # Set per-cluster, e.g., "database-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: DATABASE_WRITE_URL
+        remoteRef:
+          property: DATABASE_WRITE_URL
+      - secretKey: DATABASE_READ_URL
+        remoteRef:
+          property: DATABASE_READ_URL
+      - secretKey: DB_HOST
+        remoteRef:
+          property: host
+      - secretKey: DB_PORT
+        remoteRef:
+          property: port
+      - secretKey: DB_NAME
+        remoteRef:
+          property: database
+      - secretKey: DB_USER
+        remoteRef:
+          property: username
+      - secretKey: DB_PASSWORD
+        remoteRef:
+          property: password
+
+  alertmanagerSlackWebhook:
+    enabled: false
+    name: alertmanager-slack-webhook
+    namespace: monitoring
+    onepasswordItem: ""  # Set per-cluster, e.g., "alertmanager-slack-ovh-starter"
+    onepasswordItemUuid: "" # Optional: use item UUID to avoid duplicate-title ambiguity
+    targetLabels: {}
+    data:
+      - secretKey: webhook_url
+        remoteRef:
+          property: webhook_url

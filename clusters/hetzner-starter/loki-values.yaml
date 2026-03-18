@@ -1,0 +1,7 @@
+# Per-cluster Loki values override for hetzner-starter.
+# Overrides the placeholder bucket names in values/loki/values-hetzner.yaml.
+loki:
+  storage:
+    bucketNames:
+      chunks: hetzner-starter-loki-chunks
+      ruler: hetzner-starter-loki-ruler

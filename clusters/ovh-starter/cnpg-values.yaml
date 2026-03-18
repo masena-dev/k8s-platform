@@ -1,0 +1,7 @@
+# Per-cluster CNPG overrides for ovh-starter.
+#
+# The OVH platform module injects the backup bucket name at bootstrap time, so
+# only the enablement and schedule need to be set here.
+backup:
+  enabled: true
+  schedule: "0 0 2 * * *"

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cnpg-cluster
+description: CloudNativePG PostgreSQL cluster with PgBouncer pooler and automated backups
+type: application
+version: 0.1.0

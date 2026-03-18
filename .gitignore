@@ -1,0 +1,56 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+tfplan.*
+*.tfvars
+*.auto.tfvars
+terraform.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Environment
+.env
+.env.*
+*.env
+!.env.example
+!.env.shared.example
+!.env.ovh.example
+!.env.hetzner.example
+!.env.oidc.example
+!.env.extras.example
+
+# Kubeconfig
+kubeconfig
+kubeconfig.*
+!kubeconfig.example
+
+# Secrets
+*.key
+*.pem
+sealed-secrets-key*
+1password-credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# AI assistant artifacts
+.claude/
+claude-plans/
+codex-plans/
+CLAUDE.local.md
+.tmp/

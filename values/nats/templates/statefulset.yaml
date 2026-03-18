@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.nats.name }}
+spec:
+  serviceName: {{ .Values.nats.name }}
+  replicas: {{ .Values.nats.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.nats.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.nats.name }}
+    spec:
+      {{- if .Values.nats.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nats.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.nats.tolerations }}
+      tolerations:
+        {{- toYaml .Values.nats.tolerations | nindent 8 }}
+      {{- end }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - {{ .Values.nats.name }}
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: nats
+          image: {{ .Values.nats.image }}
+          {{- if .Values.nats.auth.enabled }}
+          env:
+            - name: NATS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nats.auth.tokenSecretRef.name }}
+                  key: {{ .Values.nats.auth.tokenSecretRef.key }}
+          {{- end }}
+          ports:
+            - name: client
+              containerPort: {{ .Values.nats.port }}
+            - name: cluster
+              containerPort: {{ .Values.nats.clusterPort }}
+            - name: monitor
+              containerPort: {{ .Values.nats.monitorPort }}
+          args:
+            - "-c"
+            - "/etc/nats/nats.conf"
+          resources:
+            requests:
+              cpu: {{ .Values.nats.resources.requests.cpu }}
+              memory: {{ .Values.nats.resources.requests.memory }}
+            limits:
+              memory: {{ .Values.nats.resources.limits.memory }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nats
+            {{- if .Values.nats.jetstream.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /healthz?js-enabled-only=true
+              port: monitor
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: monitor
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Values.nats.name }}-config
+  {{- if .Values.nats.jetstream.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.nats.jetstream.storage.storageClass }}
+        storageClassName: {{ .Values.nats.jetstream.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.nats.jetstream.storage.size }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.nats.name }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: {{ .Values.nats.name }}
+  ports:
+    - name: client
+      port: {{ .Values.nats.port }}
+      targetPort: client
+    - name: cluster
+      port: {{ .Values.nats.clusterPort }}
+      targetPort: cluster
+    - name: monitor
+      port: {{ .Values.nats.monitorPort }}
+      targetPort: monitor

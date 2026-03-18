@@ -1,0 +1,36 @@
+# Typesense - Fast, typo-tolerant search engine
+# Deploys a 3-node cluster using Raft consensus for HA.
+# Admin API key should be managed via ESO (ExternalSecret) in production.
+
+typesense:
+  name: typesense
+  replicas: 3
+  image: typesense/typesense:30.1
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  storage:
+    size: 10Gi
+    # storageClass: "" # Uses cluster default
+
+  port: 8108
+  peering_port: 8107
+
+  # Authentication
+  auth:
+    apiKeySecretRef:
+      name: typesense-admin-key
+      key: api-key
+
+  # Enable analytics (search query analytics, trending queries)
+  analytics:
+    enabled: true
+
+  # Node scheduling (overridden by cloud overlays)
+  nodeSelector: {}
+  tolerations: []

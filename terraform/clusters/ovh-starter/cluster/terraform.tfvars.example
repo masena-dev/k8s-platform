@@ -1,0 +1,41 @@
+# OVH Provider
+ovh_endpoint           = "ovh-ca"
+# Note: use "ovh-ca" if your API token was created on https://ca.api.ovh.com/createToken/
+# Recommended: set credentials via environment variables (see .env.ovh.example)
+# ovh_application_key    = ""
+# ovh_application_secret = ""
+# ovh_consumer_key       = ""
+
+# OpenStack Provider
+openstack_auth_url    = "https://auth.cloud.ovh.net/v3"
+# Recommended: set credentials via environment variables (see .env.ovh.example)
+# openstack_user_name   = ""
+# openstack_password    = ""
+# openstack_tenant_name = ""
+
+# Cluster
+cluster_name = "ovh-starter"
+domain       = "example.com"
+region       = "GRA9"
+
+# Node Pool
+node_flavor   = "b3-8"
+desired_nodes = 3
+min_nodes     = 2
+max_nodes     = 5
+
+# OIDC (optional)
+# enable_oidc    = true
+# oidc_client_id = "your-client-id.apps.googleusercontent.com"
+
+# Database (optional)
+# database_provider = "managed"   # or "cnpg" or "none" (default: "none")
+# database_plan     = "essential"
+# database_flavor   = "db1-4"
+# database_ip_restrictions defaults to the cluster subnet if left unset.
+
+# Optional: restrict API server access to specific CIDR blocks.
+# When set, only these IPs can reach the Kubernetes API. Leave empty for unrestricted access.
+# With ArgoCD handling deployments via GitOps, CI/CD runners don't need API access for
+# day-to-day deploys — only for Terraform infrastructure changes.
+# api_server_ip_restrictions = ["203.0.113.0/32", "198.51.100.0/24"]

@@ -1,0 +1,11 @@
+# Monitoring Middleware Configuration
+#
+# Creates a Traefik basicAuth middleware that protects Prometheus and
+# AlertManager ingresses. The htpasswd secret is synced from 1Password
+# via an ExternalSecret.
+
+# 1Password item name for the monitoring-basic-auth secret
+onepasswordItemName: ""
+
+# ClusterSecretStore name (created by platform-secrets)
+secretStoreName: onepassword

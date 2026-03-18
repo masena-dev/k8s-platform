@@ -1,0 +1,48 @@
+# Hetzner Cloud
+# hcloud_token = ""  # Recommended: set via TF_VAR_hcloud_token in .env.hetzner
+
+# Cluster
+cluster_name = "hetzner-starter"
+domain       = "example.com"
+region       = "nbg1"
+# Prefer TF_VAR_ssh_public_key / TF_VAR_ssh_private_key in .env and
+# pass the actual key contents there. File paths still work for local
+# convenience, but env-driven key material is the reproducible default.
+# If you want to reuse an existing Hetzner Cloud SSH key instead of registering
+# the public key on the fly, set TF_VAR_hcloud_ssh_key_id in .env.
+
+# Control Plane
+control_plane_server_type = "cax21"
+control_plane_count       = 1
+
+# Workers
+# cax21 (4 ARM vCPU, 8 GB) is the cost-effective default.
+# Choose the right instance type for your workload:
+#   cax*  — ARM (Ampere), best price/performance, suits most workloads
+#   ccx*  — dedicated x86 vCPU, for x86-only images or production (ccx13+)
+#   cpx*  — shared x86 vCPU (cheapest x86, but may have CSI volume hotplug
+#            issues on certain hypervisor hosts)
+#   cx*   — shared x86 new-gen (starts at cx23)
+server_type   = "cax21"
+desired_nodes = 2
+
+# OIDC (optional)
+# enable_oidc    = true
+# oidc_client_id = "your-client-id.apps.googleusercontent.com"
+
+# Object Storage (Hetzner S3-compatible)
+# enable_object_storage      = true
+# object_storage_access_key  = ""  # Generated in Hetzner Cloud Console
+# object_storage_secret_key  = ""  # Generated in Hetzner Cloud Console
+
+# Firewall (Hetzner restricts outbound traffic by default)
+# extra_firewall_rules = [
+#   {
+#     direction       = "out"
+#     port            = "587"
+#     protocol        = "tcp"
+#     source_ips      = []
+#     destination_ips = ["0.0.0.0/0", "::/0"]
+#     description     = "Allow outbound SMTP for email services"
+#   }
+# ]
